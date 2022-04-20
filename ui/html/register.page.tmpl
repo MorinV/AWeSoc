@@ -1,0 +1,26 @@
+{{template "base" .}}
+
+{{define "title"}}Регистрация{{end}}
+
+{{define "main"}}
+    <div class="registrationForm">
+        <form action="/register" method="post">
+            <h3>Учетная запись</h3>
+            Login:<input type="text" name="login">
+            Password:<input type="password" name="password">
+            Email:<input type="text" name="email">
+            <h3>О себе</h3>
+            Фамилия:<input type="text" name="surname">
+            Имя:<input type="text" name="firstname">
+            Отчество:<input type="text" name="secondname">
+            Дата рождения:<input type="date" name="birthdate">
+            Пол:<select name="gender">
+                <option value="1">Мужской</option>
+                <option value="2">Женский</option>
+            </select><br>
+            Город: <input type="text" name="city">
+            Интересы: <textarea name="interests"></textarea>
+            <input type="submit" value="Зарегестрироваться">
+        </form>
+    </div>
+{{end}}

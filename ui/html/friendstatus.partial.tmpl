@@ -1,0 +1,11 @@
+{{define "friendstatus"}}
+    {{if .Friend.State}}
+        {{if eq .Friend.State "approved"}}
+            <div><span>Вы друзья!</span></div>
+        {{else}}
+            <div><span>Заявка в друзья на рассмотрении</span></div>
+        {{end}}
+    {{else}}
+        <div><button id="addFriendButton" data-friend="{{.Personal.Id}}">Добавить в друзья</button></div>
+    {{end}}
+{{end}}

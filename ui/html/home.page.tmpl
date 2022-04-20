@@ -1,0 +1,25 @@
+{{template "base" .}}
+
+{{define "title"}}Домашняя страницы{{end}}
+
+{{define "main"}}
+    <h2>Последние анкеты</h2>
+    {{if .Personals}}
+        <table>
+            <tr>
+                <th>ФИО</th>
+                <th>Город</th>
+                <th>Дата рождения</th>
+            </tr>
+            {{range .Personals}}
+            <tr>
+                <td><a href="/personal?id={{.Id}}">{{.Fullname}}</a></td>
+                <td>{{.City}}</td>
+                <td>{{.Birthdate.Format "2006-01-02" }}</td>
+            </tr>
+            {{end}}
+        </table>
+    {{else}}
+        <p>Здесь пока никого нет</p>
+    {{end}}
+{{end}}

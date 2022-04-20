@@ -1,0 +1,37 @@
+{{define "base"}}
+    <!doctype html>
+    <html lang='en'>
+    <head>
+        <meta charset='utf-8'>
+        <link rel='stylesheet' href='/static/css/main.css'>
+        <link rel='shortcut icon' href='/static/img/favicon.ico' type='image/x-icon'>
+        <link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700'>
+        <title>{{template "title" .}} - AWesomeSocial</title>
+    </head>
+    <body>
+    <div>
+        <nav>
+        {{if .User.Authenticated}}
+            <a href="/personal?id={{.User.PersonalId}}">{{.User.Fullname}}</a>
+            <a href="/friendlist">Друзья</a>
+            <a href="/logout">Выход</a>
+        {{else}}
+            <a href="/loginForm">Войти</a>
+            <a href="/registerForm">Регистрация</a>
+        {{end}}
+        </nav>
+    </div>
+    <header>
+        <h1><a href='/'>AWesomeSocial</a></h1>
+    </header>
+    <nav>
+        <a href='/'>Домашняя страница</a>
+    </nav>
+    <main>
+        {{template "main" .}}
+    </main>
+    {{template "footer"}}
+    <script src="/static/js/main.js" type="text/javascript"></script>
+    </body>
+    </html>
+{{end}}

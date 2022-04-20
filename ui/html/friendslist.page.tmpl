@@ -1,0 +1,37 @@
+{{template "base" .}}
+
+{{define "title"}}Список друзей{{end}}
+
+{{define "main"}}
+    {{if .IncomingFriends}}
+        <h2>Заявки в друзья</h2>
+        <table>
+            <tr>
+                <th>ФИО</th>
+                <th></th>
+            </tr>
+            {{range .IncomingFriends}}
+                <tr>
+                    <td><a href="/personal?id={{.Personal.Id}}">{{.Personal.Fullname}}</a></td>
+                    <td>{{template "friendstatus" .}}</td>
+                </tr>
+            {{end}}
+        </table>
+    {{end}}
+
+    {{if .Friends}}
+        <h2>Список друзей</h2>
+        <table>
+            <tr>
+                <th>ФИО</th>
+                <th></th>
+            </tr>
+            {{range .Friends}}
+                <tr>
+                    <td><a href="/personal?id={{.Personal.Id}}">{{.Personal.Fullname}}</a></td>
+                    <td>{{template "friendstatus" .}}</td>
+                </tr>
+            {{end}}
+        </table>
+    {{end}}
+{{end}}
