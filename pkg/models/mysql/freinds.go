@@ -30,7 +30,7 @@ func (fr *FriendsRepository) GetFriendsList(personalId int) ([]*FriendPersonal, 
 	f.created,
     p.id,
 	p.fullname
-FROM friends f INNER JOIN personal p on f.personal_id = p.id WHERE personal_id = ? ORDER BY state`
+FROM friends f INNER JOIN personal p on f.friend_id = p.id WHERE personal_id = ? ORDER BY state`
 	rows, err := fr.DB.Query(stmt, personalId)
 	if err != nil {
 		return nil, err
