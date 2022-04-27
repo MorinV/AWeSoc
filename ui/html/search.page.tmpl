@@ -1,0 +1,32 @@
+{{template "base" .}}
+
+{{define "title"}}Домашняя страницы{{end}}
+
+{{define "main"}}
+    <div class="registrationForm">
+        <form method="get">
+            Имя:<input type="text" name="firstNamePref">
+            Фамилия:<input type="text" name="surNamePref">
+            <input type="submit" value="Искать">
+        </form>
+    </div>
+    <h2>Результаты поиска:</h2>
+    {{if .Persons}}
+        <table>
+            <tr>
+                <th>ФИО</th>
+                <th>Город</th>
+                <th>Дата рождения</th>
+            </tr>
+            {{range .Persons}}
+                <tr>
+                    <td><a href="/personal?id={{.Id}}">{{.Fullname}}</a></td>
+                    <td>{{.City}}</td>
+                    <td>{{.Birthdate.Format "2006-01-02" }}</td>
+                </tr>
+            {{end}}
+        </table>
+    {{else}}
+        <p>{{.ErrorMessage}}</p>
+    {{end}}
+{{end}}

@@ -1,0 +1,21 @@
+{{template "base" .}}
+
+{{define "title"}}Регистрация{{end}}
+
+{{define "main"}}
+    <div class="editPersonForm">
+        <form action="/editPerson" method="post">
+            Фамилия:<input type="text" name="surname">
+            Имя:<input type="text" name="firstname">
+            Отчество:<input type="text" name="secondname">
+            Дата рождения:<input type="date" name="birthdate">
+            Пол:<select name="gender">
+                <option value="1">Мужской</option>
+                <option value="2">Женский</option>
+            </select><br>
+            Город: <input type="text" name="city">
+            Интересы: <textarea name="interests"></textarea>
+            <input type="submit" value="Сохранить">
+        </form>
+    </div>
+{{end}}
