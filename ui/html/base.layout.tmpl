@@ -12,7 +12,8 @@
     <div>
         <nav>
         {{if .User.Authenticated}}
-            <a href="/personal?id={{.User.PersonalId}}">{{.User.Fullname}}</a>
+            <a href="/personal?id={{.User.PersonId}}">{{.User.Fullname}}</a>
+            <a href="/editPersonForm">Редактировать анкету</a>
             <a href="/friendlist">Друзья</a>
             <a href="/logout">Выход</a>
         {{else}}
@@ -26,6 +27,7 @@
     </header>
     <nav>
         <a href='/'>Домашняя страница</a>
+        <a href='/search'>Поиск</a>
     </nav>
     <main>
         {{template "main" .}}

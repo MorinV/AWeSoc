@@ -1,20 +1,23 @@
 package main
 
 import (
-	"AWesomeSocial/pkg/models"
-	"AWesomeSocial/pkg/models/mysql"
+	"AWesomeSocial/domain/friend"
+	"AWesomeSocial/domain/person"
+	"AWesomeSocial/usecase"
 	"html/template"
 	"path/filepath"
 )
 
 type templateData struct {
-	Personal        *models.Personal
-	Personals       []*models.Personal
-	FriendPersonal  *mysql.FriendPersonal
-	Friends         []*mysql.FriendPersonal
-	IncomingFriends []*mysql.FriendPersonal
-	User            User
-	Flashes         []interface{}
+	Person             *person.Person
+	Persons            []*person.Person
+	Friend             *friend.Friend
+	Friends            []*friend.Friend
+	IncomingFriends    []*friend.Friend
+	User               User
+	Flashes            []interface{}
+	SearchPersonParams usecase.SearchPersonParams
+	ErrorMessage       string
 }
 
 func newTemplateCache(dir string) (map[string]*template.Template, error) {

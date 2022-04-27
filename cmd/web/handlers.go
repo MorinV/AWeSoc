@@ -1,8 +1,9 @@
 package main
 
 import (
-	"AWesomeSocial/pkg/models"
-	"AWesomeSocial/pkg/models/mysql"
+	"AWesomeSocial/domain/friend"
+	"AWesomeSocial/internal"
+	"AWesomeSocial/usecase"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,7 +11,7 @@ import (
 	"strconv"
 )
 
-func (app *application) home(w http.ResponseWriter, r *http.Request) {
+func (s *service) home(w http.ResponseWriter, r *http.Request) {
 	session, err := store.Get(r, CookieName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -18,105 +19,139 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.URL.Path != "/" {
-		app.notFound(w)
+		s.notFound(w)
 		return
 	}
 
-	user := app.getUser(session)
-	personals, err := app.rm.Repositories.PersonalRepository.Latest()
+	user := s.getUser(session)
+	personals, err := s.app.GetLatestRegisteredPersons()
 	if err != nil {
-		app.serverError(w, err)
+		s.serverError(w, err)
 		return
 	}
 
-	data := &templateData{Personals: personals, User: user}
+	data := &templateData{Persons: personals, User: user}
 
-	app.render(w, r, "home.page.tmpl", data)
+	s.render(w, r, "home.page.tmpl", data)
 }
 
-func (app *application) showPersonalPage(w http.ResponseWriter, r *http.Request) {
+func (s *service) showPersonalPage(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.URL.Query().Get("id"))
 	if err != nil || id < 1 {
-		app.notFound(w)
+		s.notFound(w)
 		return
 	}
 
 	session, err := store.Get(r, CookieName)
 	if err != nil {
-		app.clientError(w, http.StatusMethodNotAllowed)
+		s.clientError(w, http.StatusMethodNotAllowed)
 		return
 	}
 
-	sessionUser := app.getUser(session)
+	sessionUser := s.getUser(session)
 
-	personal, err := app.rm.Repositories.PersonalRepository.Get(id)
+	person, err := s.app.GetPerson(id)
 	if err != nil {
-		if errors.Is(err, models.ErrNoRecord) {
-			app.notFound(w)
+		if errors.Is(err, internal.ErrNoRecord) {
+			s.notFound(w)
 		} else {
-			app.serverError(w, err)
+			s.serverError(w, err)
 		}
 		return
 	}
 
-	friendPersonal := &mysql.FriendPersonal{}
+	f := &friend.Friend{}
 
-	if sessionUser.Authenticated && sessionUser.UserId != personal.UserId {
-		friendPersonal, err = app.rm.Repositories.FriendsRepository.GetFriend(sessionUser.UserId, personal.UserId)
+	if sessionUser.Authenticated && sessionUser.UserId != person.UserId {
+		f, err = s.app.GetFriend(sessionUser.PersonId, person.Id)
 		if err != nil {
-			if errors.Is(err, models.ErrNoRecord) {
-				friendPersonal.Personal = personal
-			} else {
-				app.serverError(w, err)
-				return
-			}
+			s.serverError(w, err)
+			return
 		}
 	}
 
-	data := &templateData{Personal: personal, User: sessionUser, FriendPersonal: friendPersonal}
+	data := &templateData{Person: person, User: sessionUser, Friend: f}
 
-	app.render(w, r, "personal.page.tmpl", data)
+	s.render(w, r, "person.page.tmpl", data)
 }
 
-func (app *application) showRegisterForm(w http.ResponseWriter, r *http.Request) {
+func (s *service) showRegisterForm(w http.ResponseWriter, r *http.Request) {
 	session, err := store.Get(r, CookieName)
 	if err != nil {
-		app.clientError(w, http.StatusMethodNotAllowed)
+		s.clientError(w, http.StatusMethodNotAllowed)
 		return
 	}
 
-	sessionUser := app.getUser(session)
+	sessionUser := s.getUser(session)
 	if sessionUser.Authenticated {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
 	data := &templateData{User: sessionUser}
-	app.render(w, r, "register.page.tmpl", data)
+	s.render(w, r, "register.page.tmpl", data)
 }
 
-func (app *application) register(w http.ResponseWriter, r *http.Request) {
+func (s *service) register(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		app.render(w, r, "register.page.tmpl", nil)
+		s.render(w, r, "register.page.tmpl", nil)
 		return
 	}
 
 	login := r.FormValue("login")
 	password := r.FormValue("password")
 	email := r.FormValue("email")
-	hashedPassword, err := app.hashPassword(password)
+
+	_, err := s.app.PersistUser(0, login, password, email)
 	if err != nil {
-		app.serverError(w, err)
+		s.serverError(w, err)
 		return
 	}
-	tr, err := app.rm.Db.Begin()
-	if err != nil {
-		app.serverError(w, err)
+
+	http.Redirect(w, r, "/editPersonForm", http.StatusSeeOther)
+}
+
+func (s *service) showEditPersonForm(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		s.clientError(w, http.StatusMethodNotAllowed)
 		return
 	}
-	userId, err := app.rm.Repositories.UsersRepository.Insert(login, hashedPassword, email)
+	session, err := store.Get(r, CookieName)
 	if err != nil {
-		tr.Rollback()
-		app.serverError(w, err)
+		s.serverError(w, err)
+		return
+	}
+	sessionUser := s.getUser(session)
+	if !sessionUser.Authenticated {
+		s.clientError(w, http.StatusUnauthorized)
+		return
+	}
+	person, err := s.app.GetPerson(sessionUser.PersonId)
+	if err != nil {
+		if errors.Is(internal.ErrNoRecord, err) {
+			person = nil
+		} else {
+			s.serverError(w, err)
+			return
+		}
+	}
+
+	data := &templateData{User: sessionUser, Person: person}
+	s.render(w, r, "editPerson.page.tmpl", data)
+}
+
+func (s *service) editPerson(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		s.clientError(w, http.StatusMethodNotAllowed)
+		return
+	}
+	session, err := store.Get(r, CookieName)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	sessionUser := s.getUser(session)
+	if !sessionUser.Authenticated {
+		s.clientError(w, http.StatusUnauthorized)
 		return
 	}
 
@@ -128,23 +163,25 @@ func (app *application) register(w http.ResponseWriter, r *http.Request) {
 	city := r.FormValue("city")
 	interests := r.FormValue("interests")
 
-	id, err := app.rm.Repositories.PersonalRepository.Insert(firstname, secondname, surname, birthdate, gender, city, interests, userId)
+	id, err := s.app.EditUserPerson(firstname, secondname, surname, birthdate, gender, city, interests, sessionUser.UserId)
 	if err != nil {
-		tr.Rollback()
-		app.serverError(w, err)
+		s.serverError(w, err)
 		return
 	}
-	if err = tr.Commit(); err != nil {
-		app.serverError(w, err)
+	sessionUser.PersonId = id
+	sessionUser.Fullname = surname + " " + firstname + " " + secondname
+	err = session.Save(r, w)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	http.Redirect(w, r, fmt.Sprintf("/personal?id=%d", id), http.StatusSeeOther)
 }
 
-func (app *application) showLoginForm(w http.ResponseWriter, r *http.Request) {
+func (s *service) showLoginForm(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		app.clientError(w, http.StatusMethodNotAllowed)
+		s.clientError(w, http.StatusMethodNotAllowed)
 		return
 	}
 	session, err := store.Get(r, CookieName)
@@ -152,17 +189,17 @@ func (app *application) showLoginForm(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	user := app.getUser(session)
+	user := s.getUser(session)
 	if user.Authenticated {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
 	data := &templateData{User: user, Flashes: session.Flashes()}
-	app.render(w, r, "login.page.tmpl", data)
+	s.render(w, r, "login.page.tmpl", data)
 	return
 }
 
-func (app *application) login(w http.ResponseWriter, r *http.Request) {
+func (s *service) login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Redirect(w, r, "/loginForm", http.StatusSeeOther)
 		return
@@ -170,11 +207,11 @@ func (app *application) login(w http.ResponseWriter, r *http.Request) {
 
 	session, err := store.Get(r, CookieName)
 	if err != nil {
-		app.serverError(w, err)
+		s.serverError(w, err)
 		return
 	}
 
-	sessionUser := app.getUser(session)
+	sessionUser := s.getUser(session)
 	if sessionUser.Authenticated {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
@@ -183,40 +220,20 @@ func (app *application) login(w http.ResponseWriter, r *http.Request) {
 	login := r.FormValue("login")
 	password := r.FormValue("password")
 
-	if password == "" || login == "" {
-		session.AddFlash("Must enter a code")
-		err = session.Save(r, w)
-		if err != nil {
-			app.serverError(w, err)
-			return
-		}
-		app.clientError(w, http.StatusForbidden)
-		return
-	}
-
-	user, err := app.rm.Repositories.UsersRepository.GetByLogin(login)
+	auth, err := s.app.AuthUser(login, password)
 	if err != nil {
-		app.serverError(w, err)
-		return
-	}
-	if auth := app.verifyPassword(password, user.Password); !auth {
-		app.clientError(w, http.StatusForbidden)
-		return
-	}
-
-	personal, err := app.rm.Repositories.PersonalRepository.GetByUserId(user.Id)
-	if err != nil {
-		app.serverError(w, err)
+		s.serverError(w, err)
 		return
 	}
 
 	sessionUser = User{
-		Username:      user.Login,
+		Username:      auth.User.Login.String(),
 		Authenticated: true,
-		UserId:        user.Id,
-		PersonalId:    personal.Id,
-		Fullname:      personal.Fullname,
+		UserId:        auth.User.Id,
+		PersonId:      auth.Person.Id,
+		Fullname:      auth.Person.Fullname,
 	}
+
 	session.Values["user"] = sessionUser
 	err = session.Save(r, w)
 	if err != nil {
@@ -226,7 +243,7 @@ func (app *application) login(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
-func (app *application) logout(w http.ResponseWriter, r *http.Request) {
+func (s *service) logout(w http.ResponseWriter, r *http.Request) {
 	session, err := store.Get(r, CookieName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -244,101 +261,107 @@ func (app *application) logout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
-func (app *application) addFriend(w http.ResponseWriter, r *http.Request) {
+func (s *service) addFriend(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		app.clientError(w, http.StatusMethodNotAllowed)
+		s.clientError(w, http.StatusMethodNotAllowed)
 		return
 	}
 
 	session, err := store.Get(r, CookieName)
 	if err != nil {
-		app.clientError(w, http.StatusMethodNotAllowed)
+		s.clientError(w, http.StatusMethodNotAllowed)
 		return
 	}
 
-	sessionUser := app.getUser(session)
+	sessionUser := s.getUser(session)
 	if auth := sessionUser.Authenticated; !auth {
-		app.clientError(w, http.StatusUnauthorized)
+		s.clientError(w, http.StatusUnauthorized)
 		return
 	}
 	t := struct {
-		Friend_id *string `json:"friend_id"`
+		FriendId *string `json:"friend_id"`
 	}{}
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(&t)
 	if err != nil {
-		app.serverError(w, err)
+		s.serverError(w, err)
 		return
 	}
-	friendId, err := strconv.Atoi(*t.Friend_id)
+	friendId, err := strconv.Atoi(*t.FriendId)
 	if err != nil {
-		app.serverError(w, err)
+		s.serverError(w, err)
 		return
 	}
-	friend, err := app.rm.Repositories.FriendsRepository.GetFriend(friendId, sessionUser.PersonalId)
-	if err != nil {
-		if errors.Is(models.ErrNoRecord, err) {
-			err = app.rm.Repositories.FriendsRepository.Insert(sessionUser.PersonalId, friendId, mysql.FriendsState["pending"])
-			if err != nil {
-				app.serverError(w, err)
-				return
-			}
-		} else {
-			app.serverError(w, err)
-			return
-		}
-	} else {
-		err = app.rm.Repositories.FriendsRepository.Insert(sessionUser.PersonalId, friendId, mysql.FriendsState["accepted"])
-		if err != nil {
-			app.serverError(w, err)
-			return
-		}
-		err = app.rm.Repositories.FriendsRepository.UpdateState(friend.Personal_id, friend.Friend_id, mysql.FriendsState["accepted"])
-		if err != nil {
-			app.serverError(w, err)
-			return
-		}
-	}
+	err = s.app.AddFriend(sessionUser.PersonId, friendId)
 
 	response := map[string]string{"status": "ok"}
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "service/json")
 	err = json.NewEncoder(w).Encode(response)
 	if err != nil {
-		app.serverError(w, err)
+		s.serverError(w, err)
 		return
 	}
 }
 
-func (app *application) showFriendsList(w http.ResponseWriter, r *http.Request) {
+func (s *service) showFriendsList(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		app.clientError(w, http.StatusMethodNotAllowed)
+		s.clientError(w, http.StatusMethodNotAllowed)
 		return
 	}
 
 	session, err := store.Get(r, CookieName)
 	if err != nil {
-		app.clientError(w, http.StatusMethodNotAllowed)
+		s.serverError(w, err)
 		return
 	}
 
-	sessionUser := app.getUser(session)
+	sessionUser := s.getUser(session)
 	if auth := sessionUser.Authenticated; !auth {
-		app.clientError(w, http.StatusUnauthorized)
+		s.clientError(w, http.StatusUnauthorized)
 		return
 	}
 
-	friends, err := app.rm.Repositories.FriendsRepository.GetFriendsList(sessionUser.PersonalId)
+	friends, err := s.app.GetFriends(sessionUser.PersonId)
 	if err != nil {
-		app.serverError(w, err)
+		s.serverError(w, err)
 		return
 	}
 
-	friendsIncoming, err := app.rm.Repositories.FriendsRepository.GetIncomingList(sessionUser.PersonalId)
+	friendsIncoming, err := s.app.GetIncomingFriends(sessionUser.PersonId)
 	if err != nil {
-		app.serverError(w, err)
+		s.serverError(w, err)
 		return
 	}
 	data := &templateData{User: sessionUser, Friends: friends, IncomingFriends: friendsIncoming}
-	app.render(w, r, "friendslist.page.tmpl", data)
+	s.render(w, r, "friendslist.page.tmpl", data)
+	return
+}
+
+func (s *service) search(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		s.clientError(w, http.StatusMethodNotAllowed)
+		return
+	}
+
+	session, err := store.Get(r, CookieName)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+
+	sessionUser := s.getUser(session)
+
+	params := usecase.SearchPersonParams{
+		FirstNamePref: r.URL.Query().Get("firstNamePref"),
+		SurNamePref:   r.URL.Query().Get("surNamePref"),
+	}
+
+	persons, err := s.app.SearchPersons(params)
+	if err != nil {
+		s.infoLog.Println(err)
+	}
+
+	data := &templateData{User: sessionUser, SearchPersonParams: params, Persons: persons}
+	s.render(w, r, "search.page.tmpl", data)
 	return
 }

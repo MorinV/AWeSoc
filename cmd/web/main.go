@@ -1,7 +1,9 @@
 package main
 
 import (
-	"AWesomeSocial/pkg/models/mysql"
+	"AWesomeSocial/internal/mysql"
+	"AWesomeSocial/usecase"
+	"database/sql"
 	"encoding/gob"
 	"flag"
 	_ "github.com/go-sql-driver/mysql"
@@ -18,17 +20,17 @@ type User struct {
 	Username      string
 	Authenticated bool
 	UserId        int
-	PersonalId    int
+	PersonId      int
 	Fullname      string
 }
 
 const CookieName = "AWeSoc"
 
-type application struct {
+type service struct {
 	errorLog      *log.Logger
 	infoLog       *log.Logger
 	templateCache map[string]*template.Template
-	rm            *mysql.RepositoryManager
+	app           *usecase.Application
 }
 
 func main() {
@@ -55,9 +57,6 @@ func main() {
 		errorLog.Fatal(err)
 	}
 
-	rm := &mysql.RepositoryManager{Db: db}
-	rm.CreateRepositories()
-
 	store = sessions.NewFilesystemStore(
 		"",
 		[]byte(*authKeyOne),
@@ -72,20 +71,33 @@ func main() {
 
 	gob.Register(User{})
 
-	app := &application{
+	repoRegistry := mysql.New(db)
+
+	s := &service{
 		errorLog:      errorLog,
 		infoLog:       infoLog,
 		templateCache: templateCache,
-		rm:            rm,
+		app:           usecase.New(repoRegistry),
 	}
 
 	srv := &http.Server{
 		Addr:     *addr,
 		ErrorLog: errorLog,
-		Handler:  app.routes(),
+		Handler:  s.routes(),
 	}
 
 	infoLog.Printf("Запуск веб-сервера на http://localhost%s", *addr)
 	err = srv.ListenAndServe()
 	errorLog.Fatal(err)
+}
+
+func openDB(dsn string) (*sql.DB, error) {
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil, err
+	}
+	if err = db.Ping(); err != nil {
+		return nil, err
+	}
+	return db, nil
 }

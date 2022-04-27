@@ -1,22 +1,24 @@
 package main
 
 import (
-	"database/sql"
 	"net/http"
 	"path/filepath"
 )
 
-func (app *application) routes() *http.ServeMux {
+func (s *service) routes() *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", app.home)
-	mux.HandleFunc("/personal", app.showPersonalPage)
-	mux.HandleFunc("/register", app.register)
-	mux.HandleFunc("/registerForm", app.showRegisterForm)
-	mux.HandleFunc("/loginForm", app.showLoginForm)
-	mux.HandleFunc("/login", app.login)
-	mux.HandleFunc("/logout", app.logout)
-	mux.HandleFunc("/addFriend", app.addFriend)
-	mux.HandleFunc("/friendlist", app.showFriendsList)
+	mux.HandleFunc("/", s.home)
+	mux.HandleFunc("/personal", s.showPersonalPage)
+	mux.HandleFunc("/register", s.register)
+	mux.HandleFunc("/registerForm", s.showRegisterForm)
+	mux.HandleFunc("/editPersonForm", s.showEditPersonForm)
+	mux.HandleFunc("/editPerson", s.editPerson)
+	mux.HandleFunc("/loginForm", s.showLoginForm)
+	mux.HandleFunc("/login", s.login)
+	mux.HandleFunc("/logout", s.logout)
+	mux.HandleFunc("/addFriend", s.addFriend)
+	mux.HandleFunc("/friendlist", s.showFriendsList)
+	mux.HandleFunc("/search", s.search)
 
 	fileServer := http.FileServer(neuteredFileSystem{http.Dir("./ui/static")})
 	mux.Handle("/static/", http.StripPrefix("/static", fileServer))
@@ -47,14 +49,4 @@ func (nfs neuteredFileSystem) Open(path string) (http.File, error) {
 	}
 
 	return f, nil
-}
-func openDB(dsn string) (*sql.DB, error) {
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		return nil, err
-	}
-	if err = db.Ping(); err != nil {
-		return nil, err
-	}
-	return db, nil
 }

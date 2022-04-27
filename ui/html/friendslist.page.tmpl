@@ -12,7 +12,7 @@
             </tr>
             {{range .IncomingFriends}}
                 <tr>
-                    <td><a href="/personal?id={{.Personal.Id}}">{{.Personal.Fullname}}</a></td>
+                    <td><a href="/personal?id={{.PersonDetails.PersonId}}">{{.PersonDetails.Fullname}}</a></td>
                     <td>{{template "friendstatus" .}}</td>
                 </tr>
             {{end}}
@@ -28,7 +28,7 @@
             </tr>
             {{range .Friends}}
                 <tr>
-                    <td><a href="/personal?id={{.Personal.Id}}">{{.Personal.Fullname}}</a></td>
+                    <td><a href="/personal?id={{.FriendDetails.PersonId}}">{{.FriendDetails.Fullname}}</a></td>
                     <td>{{template "friendstatus" .}}</td>
                 </tr>
             {{end}}

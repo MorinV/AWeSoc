@@ -1,0 +1,20 @@
+{{template "base" .}}
+
+{{define "title"}}Пользователь {{.Person.Fullname}}{{end}}
+
+{{define "main"}}
+<div class="Person">
+        <strong>{{.Person.Fullname}}</strong>
+        <p>Дата рождения: {{.Person.Birthdate.Format "2006-01-02" }}</p>
+        <p>Пол: {{.Person.Gender}}</p>
+        <p>Город: {{.Person.City}}</p>
+        <p>Интересы: {{.Person.Interests}}</p>
+</div>
+<div class="friends">
+        {{if .User.Authenticated}}
+                {{if ne .User.PersonId .Person.Id}}
+                        {{template "friendstatus" .Friend}}
+                {{end}}
+        {{end}}
+</div>
+{{end}}

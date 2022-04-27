@@ -4,14 +4,14 @@
 
 {{define "main"}}
     <h2>Последние анкеты</h2>
-    {{if .Personals}}
+    {{if .Persons}}
         <table>
             <tr>
                 <th>ФИО</th>
                 <th>Город</th>
                 <th>Дата рождения</th>
             </tr>
-            {{range .Personals}}
+            {{range .Persons}}
             <tr>
                 <td><a href="/personal?id={{.Id}}">{{.Fullname}}</a></td>
                 <td>{{.City}}</td>
